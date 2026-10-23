@@ -212,4 +212,3 @@ above.
 ## License
 
 [MIT](LICENSE)
-# vittimul-mcq
