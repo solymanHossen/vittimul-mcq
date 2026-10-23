@@ -14,9 +14,15 @@
     "sourceMap": true,
     "rootDir": "./src",
     "outDir": "./dist",
-    "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
+
+    // TypeScript 6+ no longer auto-includes every package under
+    // node_modules/@types — only packages that provide *global* ambient
+    // declarations (not ones resolved via a normal `import`) need listing
+    // here: Node globals, Jest's test globals, and the Express/Multer
+    // namespace augmentation used as `Express.Multer.File`.
+    "types": ["node", "jest", "express", "multer"],
 
     // ── Strict mode ────────────────────────────────────────────────────────────
     // Enables the full suite: strictNullChecks, strictFunctionTypes,
@@ -35,10 +41,10 @@
     // Keeps imports clean across deeply nested modules.
     // tsconfig-paths is wired in via ts-node for local dev/seed scripts.
     "paths": {
-      "@common/*": ["src/common/*"],
-      "@auth/*":   ["src/auth/*"],
-      "@database/*": ["src/database/*"],
-      "@health/*": ["src/health/*"]
+      "@common/*": ["./src/common/*"],
+      "@auth/*":   ["./src/auth/*"],
+      "@database/*": ["./src/database/*"],
+      "@health/*": ["./src/health/*"]
     }
   },
   "include": ["src/**/*"],

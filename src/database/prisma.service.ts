@@ -93,6 +93,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           );
           throw new Error(
             `Database connection failed after ${MAX_STARTUP_RETRIES} attempts: ${message}`,
+            { cause: error },
           );
         }
 

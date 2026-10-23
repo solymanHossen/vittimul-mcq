@@ -16,8 +16,7 @@ function getParamDecoratorFactory<T>(
   }
 
   const args = Reflect.getMetadata('__routeArguments__', TestDecorator, 'test') as
-    | Record<string, { factory: (data: unknown, ctx: ExecutionContext) => T }>
-    | undefined;
+    Record<string, { factory: (data: unknown, ctx: ExecutionContext) => T }> | undefined;
 
   const key = args ? Object.keys(args)[0] : undefined;
   const entry = args && key ? args[key] : undefined;

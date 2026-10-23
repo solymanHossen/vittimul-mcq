@@ -1,19 +1,21 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { HealthIndicator, HealthIndicatorResult, HealthCheckError } from '@nestjs/terminus';
+import { HealthIndicatorResult, HealthIndicatorService } from '@nestjs/terminus';
 import { PrismaService } from './prisma.service';
 
 /** Maximum milliseconds to wait for the health-check query before declaring degraded. */
 const HEALTH_CHECK_TIMEOUT_MS = 2_000;
 
 @Injectable()
-export class DatabaseHealthIndicator extends HealthIndicator {
+export class DatabaseHealthIndicator {
   private readonly logger = new Logger(DatabaseHealthIndicator.name);
 
-  constructor(private readonly prisma: PrismaService) {
-    super();
-  }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly healthIndicatorService: HealthIndicatorService,
+  ) {}
 
   async isHealthy(key: string): Promise<HealthIndicatorResult> {
+    const indicator = this.healthIndicatorService.check(key);
     let timeoutHandle: NodeJS.Timeout | undefined;
 
     try {
@@ -30,7 +32,7 @@ export class DatabaseHealthIndicator extends HealthIndicator {
         }),
       ]);
 
-      return this.getStatus(key, true);
+      return indicator.up();
     } catch (error: unknown) {
       const internalMessage = error instanceof Error ? error.message : 'Unknown error';
 
@@ -39,10 +41,9 @@ export class DatabaseHealthIndicator extends HealthIndicator {
 
       // Surface only a generic message externally — raw DB errors must never
       // reach load-balancer health endpoints or public monitoring dashboards.
-      throw new HealthCheckError(
-        'Database health check failed',
-        this.getStatus(key, false, { message: 'Database is unavailable' }),
-      );
+      // Terminus v12 only turns a *returned* down result into a 503; a thrown
+      // error is treated as unexpected and yields a 500 instead.
+      return indicator.down({ message: 'Database is unavailable' });
     } finally {
       clearTimeout(timeoutHandle);
     }
