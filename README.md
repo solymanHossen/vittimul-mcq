@@ -2,12 +2,12 @@
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>
 
-<h1 align="center">NestJS Prisma Starter Kit</h1>
+<h1 align="center">Vittimul MCQ</h1>
 
 <p align="center">
-  A production-ready NestJS + Prisma + PostgreSQL backend starter, wired up with the
-  security, observability, and infrastructure plumbing that most projects end up
-  re-building from scratch.
+  A production-ready NestJS + Prisma + PostgreSQL backend for Vittimul MCQ, wired up
+  with the security, observability, and infrastructure plumbing that most projects end
+  up re-building from scratch.
 </p>
 
 ## Features
@@ -59,7 +59,7 @@
 
 ```bash
 git clone <this-repo>
-cd nestjs-starter-kit
+cd vittimul-mcq
 cp .env.example .env        # then fill in the REQUIRED values (see below)
 npm install
 ```

@@ -75,10 +75,10 @@ jobs:
         env:
           POSTGRES_USER: app_user
           POSTGRES_PASSWORD: app_password
-          POSTGRES_DB: nestjs_starter_kit
+          POSTGRES_DB: vittimul_mcq
         ports: ['5432:5432']
         options: >-
-          --health-cmd "pg_isready -U app_user -d nestjs_starter_kit"
+          --health-cmd "pg_isready -U app_user -d vittimul_mcq"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -92,7 +92,7 @@ jobs:
           --health-retries 10
     env:
       NODE_ENV: test
-      DATABASE_URL: postgresql://app_user:app_password@localhost:5432/nestjs_starter_kit?schema=public
+      DATABASE_URL: postgresql://app_user:app_password@localhost:5432/vittimul_mcq?schema=public
       REDIS_URL: redis://localhost:6379
       JWT_ACCESS_SECRET: ci-access-secret-not-for-production-use-only-32c
       JWT_REFRESH_SECRET: ci-refresh-secret-not-for-production-use-only-32c

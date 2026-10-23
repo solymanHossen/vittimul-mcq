@@ -13,13 +13,13 @@ services:
     environment:
       POSTGRES_USER: app_user
       POSTGRES_PASSWORD: app_password
-      POSTGRES_DB: nestjs_starter_kit
+      POSTGRES_DB: vittimul_mcq
     ports:
       - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U app_user -d nestjs_starter_kit']
+      test: ['CMD-SHELL', 'pg_isready -U app_user -d vittimul_mcq']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -46,7 +46,7 @@ services:
       target: build
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://app_user:app_password@postgres:5432/nestjs_starter_kit?schema=public
+      DATABASE_URL: postgresql://app_user:app_password@postgres:5432/vittimul_mcq?schema=public
     command: ['npx', 'prisma', 'db', 'push', '--accept-data-loss']
     depends_on:
       postgres:
@@ -59,7 +59,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://app_user:app_password@postgres:5432/nestjs_starter_kit?schema=public
+      DATABASE_URL: postgresql://app_user:app_password@postgres:5432/vittimul_mcq?schema=public
       REDIS_URL: redis://redis:6379
     ports:
       - '${PORT:-3000}:${PORT:-3000}'

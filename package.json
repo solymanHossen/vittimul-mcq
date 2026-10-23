@@ -1,7 +1,7 @@
 {
-  "name": "nestjs-prisma-starter-kit",
+  "name": "vittimul-mcq",
   "version": "0.0.1",
-  "description": "",
+  "description": "Vittimul MCQ — a live MCQ/quiz backend built on NestJS + Prisma.",
   "author": "Solyman Hossen",
   "private": true,
   "license": "MIT",
