@@ -149,7 +149,7 @@ describe('validateEnv', () => {
     const result = validateEnv(buildValidConfig({ STORAGE_ALLOWED_MIME_TYPES: '' }));
 
     expect(result.STORAGE_ALLOWED_MIME_TYPES).toBe(
-      'image/jpeg,image/png,image/webp,image/gif,application/pdf',
+      'image/jpeg,image/png,image/webp,image/gif,application/pdf,audio/mpeg,audio/mp4,audio/ogg,audio/wav,audio/webm',
     );
   });
 

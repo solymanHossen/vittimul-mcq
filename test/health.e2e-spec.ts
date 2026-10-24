@@ -4,8 +4,6 @@ import { HealthCheckError } from '@nestjs/terminus';
 import request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { DatabaseHealthIndicator } from '../src/database/db.health';
-import { TransformInterceptor } from '../src/common/interceptors/transform.interceptor';
-import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 
 describe('HealthController (e2e)', () => {
   describe('When the database is healthy', () => {
@@ -23,10 +21,6 @@ describe('HealthController (e2e)', () => {
         type: VersioningType.URI,
         defaultVersion: '1',
       });
-
-      // Mirroring production pipeline configuration
-      app.useGlobalFilters(new HttpExceptionFilter());
-      app.useGlobalInterceptors(new TransformInterceptor());
 
       await app.init();
     });
@@ -82,10 +76,6 @@ describe('HealthController (e2e)', () => {
         type: VersioningType.URI,
         defaultVersion: '1',
       });
-
-      // Mirroring production pipeline configuration
-      app.useGlobalFilters(new HttpExceptionFilter());
-      app.useGlobalInterceptors(new TransformInterceptor());
 
       await app.init();
     });

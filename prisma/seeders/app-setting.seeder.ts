@@ -3,6 +3,8 @@ import { Seeder } from './seeder.interface';
 
 export class AppSettingSeeder implements Seeder {
   readonly name = 'AppSettingSeeder';
+  readonly description = 'Seeds global app configuration flags';
+  readonly order = 0;
 
   async seed(prisma: PrismaClient): Promise<void> {
     console.log('🔧 Upserting AppSetting singleton row...');

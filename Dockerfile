@@ -38,6 +38,10 @@ COPY --from=build /app/dist ./dist
 COPY package.json prisma.config.ts ./
 COPY prisma/schema.prisma ./prisma/schema.prisma
 
+# Local storage provider writes uploaded objects here at runtime — must exist
+# and be writable by the non-root `app` user before USER switches to it.
+RUN mkdir -p /app/storage && chown -R app:app /app/storage
+
 USER app
 EXPOSE 3000
 

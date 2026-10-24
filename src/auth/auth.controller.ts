@@ -237,13 +237,16 @@ export class AuthController {
       httpOnly: true,
       secure: isProduction,
       sameSite: 'strict',
-      path: '/api/v1/auth/refresh',
+      // Scoped to the whole /auth subtree (not just /auth/refresh) so the
+      // browser also sends it on /auth/logout and /auth/logout-all, which
+      // read this same cookie to revoke the current session.
+      path: '/api/v1/auth',
       maxAge,
     });
   }
 
   private clearRefreshTokenCookie(res: Response): void {
-    res.clearCookie('refresh_token', { path: '/api/v1/auth/refresh' });
+    res.clearCookie('refresh_token', { path: '/api/v1/auth' });
   }
 
   private extractDeviceInfo(req: Request): string {

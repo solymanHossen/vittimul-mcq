@@ -8,6 +8,7 @@ import {
 import { SkipThrottle } from '@nestjs/throttler';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { DatabaseHealthIndicator } from '../database/db.health';
+import { RedisHealthIndicator } from '../common/redis/redis.health';
 import { Public } from '../auth/decorators/public.decorator';
 import { AUTH_THROTTLE_KEY, GLOBAL_THROTTLE_KEY } from '../common/constants/throttler.constants';
 
@@ -32,6 +33,7 @@ export class HealthController {
   constructor(
     private readonly health: HealthCheckService,
     private readonly dbIndicator: DatabaseHealthIndicator,
+    private readonly redisIndicator: RedisHealthIndicator,
     private readonly memoryIndicator: MemoryHealthIndicator,
   ) {}
 
@@ -76,6 +78,7 @@ export class HealthController {
   async readiness(): Promise<HealthCheckResult> {
     return this.health.check([
       () => this.dbIndicator.isHealthy('postgres'),
+      () => this.redisIndicator.isHealthy('redis'),
       () => this.memoryIndicator.checkHeap('memory_heap', MEMORY_HEAP_THRESHOLD_BYTES),
     ]);
   }
@@ -101,6 +104,7 @@ export class HealthController {
   async check(): Promise<HealthCheckResult> {
     return this.health.check([
       () => this.dbIndicator.isHealthy('postgres'),
+      () => this.redisIndicator.isHealthy('redis'),
       () => this.memoryIndicator.checkHeap('memory_heap', MEMORY_HEAP_THRESHOLD_BYTES),
     ]);
   }

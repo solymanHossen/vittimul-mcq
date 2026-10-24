@@ -5,6 +5,12 @@ import { Pool } from 'pg';
 import { UserSeeder } from './seeders/user.seeder';
 import { AppSettingSeeder } from './seeders/app-setting.seeder';
 import { EdTechSeeder } from './seeders/edtech.seeder';
+import { VocabSeeder } from './seeders/vocab.seeder';
+import { TournamentSeeder } from './seeders/tournament.seeder';
+import { MonetizationSeeder } from './seeders/monetization.seeder';
+import { ExamAttemptSeeder } from './seeders/exam-attempt.seeder';
+import { CompassSeeder } from './seeders/compass.seeder';
+import { CommunitySeeder } from './seeders/community.seeder';
 import type { Seeder } from './seeders/seeder.interface';
 
 // ── Environment guard (deny-by-default) ───────────────────────────────────────
@@ -49,7 +55,17 @@ async function main(): Promise<void> {
   // Register seeders, then sort by their declared `order` so that dependency
   // order is respected regardless of array registration sequence.
   // Seeders without an `order` value are sorted to the end.
-  const seeders: Seeder[] = [new UserSeeder(), new AppSettingSeeder(), new EdTechSeeder()];
+  const seeders: Seeder[] = [
+    new AppSettingSeeder(),
+    new UserSeeder(),
+    new EdTechSeeder(),
+    new VocabSeeder(),
+    new TournamentSeeder(),
+    new MonetizationSeeder(),
+    new ExamAttemptSeeder(),
+    new CompassSeeder(),
+    new CommunitySeeder(),
+  ];
   seeders.sort(
     (a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER),
   );

@@ -184,7 +184,11 @@ export const envSchema = z
     // via the public file-stream route) by leaving this blank.
     STORAGE_ALLOWED_MIME_TYPES: z.preprocess(
       (v) => (v === '' ? undefined : v),
-      z.string().default('image/jpeg,image/png,image/webp,image/gif,application/pdf'),
+      z
+        .string()
+        .default(
+          'image/jpeg,image/png,image/webp,image/gif,application/pdf,audio/mpeg,audio/mp4,audio/ogg,audio/wav,audio/webm',
+        ),
     ),
 
     STORAGE_AWS_ACCESS_KEY_ID: z.preprocess(

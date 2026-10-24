@@ -63,9 +63,7 @@ export class EdTechSeeder implements Seeder {
 
   // ── Taxonomy ─────────────────────────────────────────────────────────────
 
-  private async seedTaxonomy(
-    prisma: PrismaClient,
-  ): Promise<{
+  private async seedTaxonomy(prisma: PrismaClient): Promise<{
     topicBySlug: Map<string, number>;
     categoryCount: number;
     subjectCount: number;

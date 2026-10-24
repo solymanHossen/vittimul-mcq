@@ -27,6 +27,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
         role: true,
         isActive: true,
         deletedAt: true,
+        tokenVersion: true,
       },
     });
 
@@ -34,7 +35,13 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('User account is inactive or does not exist');
     }
 
-    const { deletedAt: _deletedAt, ...authUser } = user;
+    if (user.tokenVersion !== payload.tokenVersion) {
+      // Token was issued before a logout-all / password reset bumped the
+      // user's tokenVersion — reject it even though it hasn't expired yet.
+      throw new UnauthorizedException('Session has been revoked');
+    }
+
+    const { deletedAt: _deletedAt, tokenVersion: _tokenVersion, ...authUser } = user;
     return authUser;
   }
 }

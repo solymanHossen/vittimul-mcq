@@ -134,7 +134,7 @@ describe('AuthController', () => {
         expect.objectContaining({
           httpOnly: true,
           sameSite: 'strict',
-          path: '/api/v1/auth/refresh',
+          path: '/api/v1/auth',
           maxAge: expect.any(Number),
         }),
       );
@@ -194,7 +194,7 @@ describe('AuthController', () => {
       expect(res.cookie).toHaveBeenCalledWith(
         'refresh_token',
         'new-refresh-token',
-        expect.objectContaining({ httpOnly: true, path: '/api/v1/auth/refresh' }),
+        expect.objectContaining({ httpOnly: true, path: '/api/v1/auth' }),
       );
       expect(result.data.accessToken).toBe(mockTokenPair.accessToken);
     });
@@ -223,7 +223,7 @@ describe('AuthController', () => {
 
       expect(mockAuthService.logout).toHaveBeenCalledWith('current-token');
       expect(res.clearCookie).toHaveBeenCalledWith('refresh_token', {
-        path: '/api/v1/auth/refresh',
+        path: '/api/v1/auth',
       });
       expect(result.message).toBe('Logged out successfully');
     });
@@ -236,7 +236,7 @@ describe('AuthController', () => {
 
       expect(mockAuthService.logout).not.toHaveBeenCalled();
       expect(res.clearCookie).toHaveBeenCalledWith('refresh_token', {
-        path: '/api/v1/auth/refresh',
+        path: '/api/v1/auth',
       });
       expect(result.message).toBe('Logged out successfully');
     });
@@ -253,7 +253,7 @@ describe('AuthController', () => {
 
       expect(mockAuthService.logoutAll).toHaveBeenCalledWith(mockAuthUser.id);
       expect(res.clearCookie).toHaveBeenCalledWith('refresh_token', {
-        path: '/api/v1/auth/refresh',
+        path: '/api/v1/auth',
       });
       expect(result.message).toBe('All sessions revoked successfully');
     });

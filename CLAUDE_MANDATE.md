@@ -15,7 +15,7 @@ You are Claude Code acting as a World-Class Principal Software Engineer, Lead So
 3. **NO CODE TRUNCATION:** Always generate the full file contents. Never partial modifications.
 4. **FUNCTIONALITY PRESERVATION:** Never remove existing functionality, rename public APIs, or introduce breaking changes unless explicitly requested. Always preserve backward compatibility.
 5. **DEPENDENCY INJECTION INTEGRITY:** Prefer Dependency Injection always. Never instantiate services manually. Do not use `new` inside `main.ts` for providers requiring dependency injection. Register them using `APP_FILTER`, `APP_GUARD`, `APP_PIPE`, or `APP_INTERCEPTOR` inside `AppModule`.
-6. **RATE-LIMITING AWARENESS:** In `@nestjs/throttler` v6+, the `ttl` config parameter accepts integers representing **seconds**, NOT milliseconds. Never inject bloated millisecond values.
+6. **RATE-LIMITING AWARENESS:** In the installed `@nestjs/throttler@6.5.0`, the `ttl` and `blockDuration` config parameters accept integers representing **milliseconds**, NOT seconds — verified against the package source and confirmed live against Redis via MONITOR (see `app.module.ts`). Never inject bare second values expecting them to be converted.
 7. **PRISMA SELECTION GUARD:** Never issue generic, unrestricted Prisma search queries. Explicitly inject the `select: { ... }` block to fetch only required fields, specifically preventing leakage of password hashes or heavy metadata.
 8. **ANTI-N+1 QUERY POLICY:** Executing database queries inside `map()`, `forEach()`, or recursive loops is strictly forbidden. Utilize `$transaction` batch operations or optimized relational inclusions (`include`).
 

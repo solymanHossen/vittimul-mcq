@@ -17,20 +17,21 @@ function buildPrismaService(): PrismaService {
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
-  const payload: JwtAccessPayload = { sub: 1, email: 'a@b.com', role: Role.USER };
+  const payload: JwtAccessPayload = { sub: 1, email: 'a@b.com', role: Role.USER, tokenVersion: 1 };
 
   beforeEach(() => {
     jest.clearAllMocks();
     strategy = new JwtStrategy(buildConfigService(), buildPrismaService());
   });
 
-  it('returns the safe user (without deletedAt) when the account is active', async () => {
+  it('returns the safe user (without deletedAt/tokenVersion) when the account is active', async () => {
     mockFindFirst.mockResolvedValueOnce({
       id: 1,
       email: 'a@b.com',
       role: Role.USER,
       isActive: true,
       deletedAt: null,
+      tokenVersion: 1,
     });
 
     const result = await strategy.validate(payload);
@@ -38,7 +39,14 @@ describe('JwtStrategy', () => {
     expect(result).toEqual({ id: 1, email: 'a@b.com', role: Role.USER, isActive: true });
     expect(mockFindFirst).toHaveBeenCalledWith({
       where: { id: 1, deletedAt: null },
-      select: { id: true, email: true, role: true, isActive: true, deletedAt: true },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        isActive: true,
+        deletedAt: true,
+        tokenVersion: true,
+      },
     });
   });
 
@@ -55,8 +63,24 @@ describe('JwtStrategy', () => {
       role: Role.USER,
       isActive: false,
       deletedAt: null,
+      tokenVersion: 1,
     });
 
     await expect(strategy.validate(payload)).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('rejects when the token was issued before a logout-all/password-reset bumped tokenVersion', async () => {
+    mockFindFirst.mockResolvedValueOnce({
+      id: 1,
+      email: 'a@b.com',
+      role: Role.USER,
+      isActive: true,
+      deletedAt: null,
+      tokenVersion: 2,
+    });
+
+    await expect(strategy.validate(payload)).rejects.toThrow(
+      new UnauthorizedException('Session has been revoked'),
+    );
   });
 });
