@@ -8,6 +8,8 @@ import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { StorageModule } from './storage/storage.module';
 import { SettingsModule } from './settings/settings.module';
+import { TaxonomyModule } from './taxonomy/taxonomy.module';
+import { QuestionsModule } from './questions/questions.module';
 import { MailModule } from './mail/mail.module';
 import { AppIdentityModule } from './common/config/app-identity.module';
 import { validateEnv } from './common/config/env.validation';
@@ -66,6 +68,8 @@ import { AUTH_THROTTLE_KEY, GLOBAL_THROTTLE_KEY } from './common/constants/throt
     AuthModule,
     StorageModule,
     SettingsModule,
+    TaxonomyModule,
+    QuestionsModule,
   ],
   providers: [
     // ── Global validation pipe ────────────────────────────────────────────────
