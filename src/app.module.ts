@@ -13,6 +13,12 @@ import { QuestionsModule } from './questions/questions.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { ExamRuntimeModule } from './exam-runtime/exam-runtime.module';
 import { ExamsModule } from './exams/exams.module';
+import { SrsModule } from './srs/srs.module';
+import { VocabularyModule } from './vocabulary/vocabulary.module';
+import { CompassModule } from './compass/compass.module';
+import { CommunityModule } from './community/community.module';
+import { TournamentsModule } from './tournaments/tournaments.module';
+import { BillingModule } from './billing/billing.module';
 import { MailModule } from './mail/mail.module';
 import { AppIdentityModule } from './common/config/app-identity.module';
 import { validateEnv } from './common/config/env.validation';
@@ -76,6 +82,12 @@ import { AUTH_THROTTLE_KEY, GLOBAL_THROTTLE_KEY } from './common/constants/throt
     LeaderboardModule,
     ExamRuntimeModule,
     ExamsModule,
+    SrsModule,
+    VocabularyModule,
+    CompassModule,
+    CommunityModule,
+    TournamentsModule,
+    BillingModule,
   ],
   providers: [
     // ── Global validation pipe ────────────────────────────────────────────────
