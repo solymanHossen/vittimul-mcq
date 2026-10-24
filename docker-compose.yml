@@ -5,6 +5,12 @@
 # The `migrate` and `app` services below override those two vars to the in-network
 # service names ("postgres"/"redis") — containers can't reach each other via
 # localhost — everything else is still read from your .env via env_file.
+#
+# POSTGRES_PORT / REDIS_PORT (optional, default 5432 / 6379) remap only the
+# *host* side of the port — handy when a native Postgres/Redis is already
+# running on the default port. The container-to-container traffic (migrate,
+# app) always uses the untouched in-network ports above, so this only affects
+# how you reach them from the host (e.g. DATABASE_URL in your .env).
 
 services:
   postgres:
@@ -15,7 +21,7 @@ services:
       POSTGRES_PASSWORD: app_password
       POSTGRES_DB: vittimul_mcq
     ports:
-      - '5432:5432'
+      - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -28,7 +34,7 @@ services:
     image: redis:8-alpine
     restart: unless-stopped
     ports:
-      - '6379:6379'
+      - '${REDIS_PORT:-6379}:6379'
     volumes:
       - redis_data:/data
     healthcheck:
