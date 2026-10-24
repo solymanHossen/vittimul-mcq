@@ -201,6 +201,18 @@ export const envSchema = z
       (v) => (v === '' ? undefined : v),
       z.string().url().optional(),
     ),
+
+    // ── Billing ──────────────────────────────────────────────────────────────
+    // Generic shared-secret gate for POST /billing/webhook/:provider, compared
+    // against an X-Webhook-Token header. This is a stand-in: BKASH, NAGAD,
+    // ROCKET, UPAY, SSLCOMMERZ, AMARPAY, and STRIPE each have their own real
+    // signature scheme (e.g. Stripe's HMAC-SHA256 `Stripe-Signature` header),
+    // and per-provider verification must replace this before accepting real
+    // payment callbacks in production.
+    BILLING_WEBHOOK_SECRET: z
+      .string()
+      .min(16, 'BILLING_WEBHOOK_SECRET must be at least 16 characters')
+      .default('changeme-generate-a-real-webhook-secret'),
   })
   .superRefine((config, ctx) => {
     // Cross-field guard: the S3 provider cannot construct a client without these,

@@ -14,11 +14,7 @@ export interface BulkCreateDelegate<T> {
  *
  * When adding a new seeder that truncates a table, register its @@map() name here.
  */
-export const SEEDER_TABLE_ALLOWLIST = new Set<string>([
-  'users',
-  'refresh_tokens',
-  'app_settings',
-]);
+export const SEEDER_TABLE_ALLOWLIST = new Set<string>(['users', 'refresh_tokens', 'app_settings']);
 
 /**
  * Splits an array into non-overlapping chunks of the given size.
@@ -52,9 +48,7 @@ export async function truncateTable(prisma: PrismaClient, tableName: string): Pr
   // tableName is validated against a strict compile-time allowlist above.
   // $executeRawUnsafe is required because TRUNCATE does not support parameterized
   // table identifiers in PostgreSQL — the allowlist is the sole injection barrier.
-  await prisma.$executeRawUnsafe(
-    `TRUNCATE TABLE "${tableName}" RESTART IDENTITY CASCADE;`,
-  );
+  await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${tableName}" RESTART IDENTITY CASCADE;`);
 }
 
 /**
