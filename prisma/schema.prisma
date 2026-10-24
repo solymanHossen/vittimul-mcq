@@ -1,27 +1,191 @@
+// ============================================================================
+// VITTIMUL-MCQ — PRISMA 7 + POSTGRESQL ENTERPRISE SCHEMA
+// 100% Backward-Compatible with existing Auth/Settings/Storage modules
+// + Full EdTech Live Exam Engine, Spaced Repetition (SM-2), Leitner Vocab,
+//   Compass Study Planner, Community Forum, Tournaments & Monetization.
+// ============================================================================
+
 datasource db {
   provider = "postgresql"
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearchPostgres"]
 }
 
+// ============================================================================
+// 1. ENUMS
+// ============================================================================
+
+// Unified Role enum preserving existing USER, ADMIN, SUPER_ADMIN while adding
+// EdTech roles (STUDENT, INSTRUCTOR, MODERATOR) so existing Auth & RolesGuard compile cleanly.
+enum Role {
+  USER
+  STUDENT
+  INSTRUCTOR
+  MODERATOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum SubscriptionStatus {
+  FREE
+  TRIAL
+  PREMIUM
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+enum DifficultyLevel {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum ExamType {
+  LIVE_CENTRAL_TEST
+  DAILY_QUIZ
+  SUBJECT_FINAL
+  TOPIC_TEST
+  PRACTICE_ARCHIVE
+  CUSTOM_MOCK
+}
+
+enum AttemptStatus {
+  INITIALIZED
+  IN_PROGRESS
+  SUBMITTED
+  AUTO_EXPIRED
+  EVALUATED
+  DISQUALIFIED
+}
+
+enum QuestionNavState {
+  NOT_VISITED
+  VISITED_UNANSWERED
+  ANSWERED
+  MARKED_FOR_REVIEW
+  ANSWERED_AND_MARKED_FOR_REVIEW
+}
+
+enum AntiCheatSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ReportReason {
+  WRONG_ANSWER
+  TYPO_MISTAKE
+  OUTDATED_DATA
+  UNCLEAR_EXPLANATION
+  IMAGE_MISSING_OR_BROKEN
+  DUPLICATE_QUESTION
+}
+
+enum ReportStatus {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+enum PaymentProvider {
+  BKASH
+  NAGAD
+  ROCKET
+  UPAY
+  SSLCOMMERZ
+  AMARPAY
+  STRIPE
+}
+
+enum PaymentState {
+  INITIATED
+  PROCESSING
+  SUCCESS
+  FAILED
+  CANCELLED
+  REFUNDED
+  DISPUTED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum NotificationType {
+  EXAM_REMINDER
+  RESULT_PUBLISHED
+  STREAK_ALERT
+  SUBSCRIPTION_EXPIRING
+  SYSTEM_ANNOUNCEMENT
+  TOURNAMENT_REWARD
+}
+
+// ============================================================================
+// 2. IDENTITY, SESSIONS, DEVICES & APP SETTINGS (100% Auth Module Compatible)
+// ============================================================================
+
 model User {
-  id                  Int            @id @default(autoincrement())
-  email               String         @unique
-  name                String?
-  password            String?
-  role                Role           @default(USER)
-  isActive            Boolean        @default(true)
-  googleId            String?        @unique @map("google_id")
-  failedLoginAttempts Int            @default(0) @map("failed_login_attempts")
-  lockedUntil         DateTime?      @map("locked_until")
-  deletedAt           DateTime?      @map("deleted_at")
-  createdAt           DateTime       @default(now()) @map("created_at")
-  updatedAt           DateTime       @updatedAt @map("updated_at")
+  id                  Int       @id @default(autoincrement())
+  uuid                String    @unique @default(uuid()) @db.Uuid
+  email               String    @unique @db.VarChar(150)
+  phoneNumber         String?   @unique @map("phone_number") @db.VarChar(20)
+  name                String?   @db.VarChar(150)
+  password            String?   @db.VarChar(255)
+  role                Role      @default(USER)
+  avatarUrl           String?   @map("avatar_url") @db.Text
+  institutionName     String?   @map("institution_name") @db.VarChar(200)
+  targetCategoryId    Int?      @map("target_category_id")
+  timezone            String    @default("Asia/Dhaka") @db.VarChar(50)
+  isActive            Boolean   @default(true) @map("is_active")
+  isPhoneVerified     Boolean   @default(false) @map("is_phone_verified")
+  isEmailVerified     Boolean   @default(false) @map("is_email_verified")
+  isBanned            Boolean   @default(false) @map("is_banned")
+  banReason           String?   @map("ban_reason") @db.Text
+  googleId            String?   @unique @map("google_id")
+  tokenVersion        Int       @default(1) @map("token_version")
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until") @db.Timestamptz
+  lastLoginAt         DateTime? @map("last_login_at") @db.Timestamptz
+  deletedAt           DateTime? @map("deleted_at") @db.Timestamptz
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Existing Auth relations
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
 
+  // EdTech Domain relations
+  targetCategory     Category?                @relation("UserTargetCategory", fields: [targetCategoryId], references: [id], onDelete: SetNull)
+  devices            UserDevice[]
+  attempts           ExamAttempt[]
+  favorites          UserFavorite[]
+  spacedRepetitions  SpacedRepetitionQueue[]
+  streak             UserStreak?
+  activityLogs       UserDailyActivity[]
+  syllabusProgress   UserSyllabusTracker[]
+  vocabularyProgress UserVocabularyProgress[]
+  comments           QuestionComment[]
+  commentUpvotes     QuestionCommentUpvote[]
+  questionReports    QuestionReport[]         @relation("ReportedByUser")
+  resolvedReports    QuestionReport[]         @relation("ResolvedByAdmin")
+  authoredQuestions  Question[]               @relation("QuestionAuthor")
+  verifiedQuestions  Question[]               @relation("QuestionVerifier")
+  tournamentRankings TournamentRanking[]
+  payments           PaymentTransaction[]
+  subscriptions      UserSubscription[]
+  notifications      UserNotification[]
+  auditLogs          AuditLog[]
+
+  @@index([role, isActive])
+  @@index([targetCategoryId])
+  @@index([createdAt])
   @@map("users")
 }
 
@@ -31,9 +195,9 @@ model RefreshToken {
   userId     Int       @map("user_id")
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   deviceInfo String?   @map("device_info")
-  expiresAt  DateTime  @map("expires_at")
-  revokedAt  DateTime? @map("revoked_at")
-  createdAt  DateTime  @default(now()) @map("created_at")
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
 
   @@index([userId])
   @@index([expiresAt])
@@ -46,9 +210,9 @@ model PasswordResetToken {
   tokenHash String    @unique @map("token_hash")
   userId    Int       @map("user_id")
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime  @map("expires_at")
-  usedAt    DateTime? @map("used_at")
-  createdAt DateTime  @default(now()) @map("created_at")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  usedAt    DateTime? @map("used_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
 
   @@index([userId])
   @@index([expiresAt])
@@ -59,12 +223,788 @@ model AppSetting {
   id                Int     @id @default(1)
   allowRegistration Boolean @default(true) @map("allow_registration")
   enableGoogleLogin Boolean @default(true) @map("enable_google_login")
+  maintenanceMode   Boolean @default(false) @map("maintenance_mode")
 
   @@map("app_settings")
 }
 
-enum Role {
-  USER
-  ADMIN
-  SUPER_ADMIN
+model UserDevice {
+  id                BigInt    @id @default(autoincrement())
+  userId            Int       @map("user_id")
+  sessionTokenHash  String    @unique @map("session_token_hash") @db.VarChar(64)
+  deviceFingerprint String    @map("device_fingerprint") @db.VarChar(255)
+  deviceModel       String?   @map("device_model") @db.VarChar(100)
+  osName            String?   @map("os_name") @db.VarChar(50)
+  osVersion         String?   @map("os_version") @db.VarChar(50)
+  appVersion        String?   @map("app_version") @db.VarChar(30)
+  fcmPushToken      String?   @map("fcm_push_token") @db.Text
+  ipAddress         String?   @map("ip_address") @db.VarChar(45)
+  isActiveSession   Boolean   @default(true) @map("is_active_session")
+  lastActiveAt      DateTime  @default(now()) @map("last_active_at") @db.Timestamptz
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attempts ExamAttempt[]
+
+  @@index([userId, isActiveSession, lastActiveAt(sort: Desc)])
+  @@index([userId, deviceFingerprint])
+  @@map("user_devices")
+}
+
+model UserNotification {
+  id        BigInt           @id @default(autoincrement())
+  userId    Int              @map("user_id")
+  type      NotificationType
+  title     String           @db.VarChar(200)
+  body      String           @db.Text
+  actionUrl String?          @map("action_url") @db.Text
+  metadata  Json?            @db.JsonB
+  isRead    Boolean          @default(false) @map("is_read")
+  readAt    DateTime?        @map("read_at") @db.Timestamptz
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt(sort: Desc)])
+  @@map("user_notifications")
+}
+
+// ============================================================================
+// 3. TAXONOMY & QUESTION BANK
+// ============================================================================
+
+model Category {
+  id           Int      @id @default(autoincrement())
+  name         String   @db.VarChar(100)
+  slug         String   @unique @db.VarChar(100)
+  description  String?  @db.Text
+  iconUrl      String?  @map("icon_url") @db.Text
+  displayOrder Int      @default(0) @map("display_order")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  subjects        Subject[]
+  exams           Exam[]
+  packages        Package[]
+  targetedByUsers User[]    @relation("UserTargetCategory")
+
+  @@index([isActive, displayOrder])
+  @@map("categories")
+}
+
+model Subject {
+  id           Int      @id @default(autoincrement())
+  categoryId   Int      @map("category_id")
+  name         String   @db.VarChar(100)
+  slug         String   @db.VarChar(100)
+  code         String?  @db.VarChar(30)
+  iconUrl      String?  @map("icon_url") @db.Text
+  displayOrder Int      @default(0) @map("display_order")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  category     Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  topics       Topic[]
+  examSections ExamSection[]
+
+  @@unique([categoryId, slug])
+  @@index([categoryId, isActive, displayOrder])
+  @@map("subjects")
+}
+
+model Topic {
+  id           Int      @id @default(autoincrement())
+  subjectId    Int      @map("subject_id")
+  parentId     Int?     @map("parent_id")
+  name         String   @db.VarChar(150)
+  slug         String   @db.VarChar(150)
+  displayOrder Int      @default(0) @map("display_order")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  subject          Subject               @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  parent           Topic?                @relation("TopicHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  subTopics        Topic[]               @relation("TopicHierarchy")
+  questions        Question[]
+  syllabusTrackers UserSyllabusTracker[]
+  vocabularyCards  VocabularyCard[]
+
+  @@unique([subjectId, slug])
+  @@index([subjectId, isActive, displayOrder])
+  @@index([parentId])
+  @@map("topics")
+}
+
+model QuestionPassage {
+  id          BigInt   @id @default(autoincrement())
+  title       String?  @db.VarChar(200)
+  passageText String   @map("passage_text") @db.Text
+  imageUrl    String?  @map("image_url") @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  questions Question[]
+
+  @@map("question_passages")
+}
+
+model Question {
+  id                  BigInt          @id @default(autoincrement())
+  uuid                String          @unique @default(uuid()) @db.Uuid
+  topicId             Int?            @map("topic_id")
+  passageId           BigInt?         @map("passage_id")
+  createdById         Int?            @map("created_by_id")
+  verifiedById        Int?            @map("verified_by_id")
+  questionText        String          @map("question_text") @db.Text
+  questionImageUrl    String?         @map("question_image_url") @db.Text
+  textExplanation     String?         @map("text_explanation") @db.Text
+  explanationImageUrl String?         @map("explanation_image_url") @db.Text
+  audioExplanationUrl String?         @map("audio_explanation_url") @db.Text
+  videoExplanationUrl String?         @map("video_explanation_url") @db.Text
+  sourceReference     String?         @map("source_reference") @db.VarChar(200)
+  difficulty          DifficultyLevel @default(MEDIUM)
+  isMultipleChoice    Boolean         @default(false) @map("is_multiple_choice")
+  defaultMarks        Decimal         @default(1.00) @map("default_marks") @db.Decimal(5, 2)
+  defaultNegative     Decimal         @default(0.50) @map("default_negative") @db.Decimal(5, 2)
+  version             Int             @default(1)
+  isFrozen            Boolean         @default(false) @map("is_frozen")
+  totalFacedCount     Int             @default(0) @map("total_faced_count")
+  totalCorrectCount   Int             @default(0) @map("total_correct_count")
+  totalSkippedCount   Int             @default(0) @map("total_skipped_count")
+  isVerified          Boolean         @default(true) @map("is_verified")
+  isActive            Boolean         @default(true) @map("is_active")
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt           DateTime?       @map("deleted_at") @db.Timestamptz
+
+  topic            Topic?                  @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  passage          QuestionPassage?        @relation(fields: [passageId], references: [id], onDelete: SetNull)
+  createdBy        User?                   @relation("QuestionAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  verifiedBy       User?                   @relation("QuestionVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  options          QuestionOption[]
+  questionTags     QuestionTag[]
+  examQuestions    ExamQuestion[]
+  runtimeResponses ExamQuestionRuntime[]
+  favorites        UserFavorite[]
+  srsQueues        SpacedRepetitionQueue[]
+  comments         QuestionComment[]
+  reports          QuestionReport[]
+
+  @@index([topicId, difficulty, isActive])
+  @@index([passageId])
+  @@index([isVerified, isActive])
+  @@index([createdAt])
+  @@map("questions")
+}
+
+model QuestionOption {
+  id             BigInt  @id @default(autoincrement())
+  questionId     BigInt  @map("question_id")
+  optionLabel    String  @map("option_label") @db.VarChar(10)
+  optionText     String  @map("option_text") @db.Text
+  optionImageUrl String? @map("option_image_url") @db.Text
+  isCorrect      Boolean @default(false) @map("is_correct")
+  displayOrder   Int     @default(1) @map("display_order")
+
+  question         Question              @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  runtimeResponses ExamQuestionRuntime[]
+
+  @@unique([id, questionId])
+  @@unique([questionId, optionLabel])
+  @@index([questionId, displayOrder])
+  @@map("question_options")
+}
+
+model Tag {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(100)
+  slug      String   @unique @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  questionTags QuestionTag[]
+
+  @@map("tags")
+}
+
+model QuestionTag {
+  questionId BigInt @map("question_id")
+  tagId      Int    @map("tag_id")
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  tag      Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, tagId])
+  @@index([tagId])
+  @@map("question_tags")
+}
+
+// ============================================================================
+// 4. EXAMS, SECTIONS & SCHEDULING
+// ============================================================================
+
+model Exam {
+  id                    BigInt    @id @default(autoincrement())
+  uuid                  String    @unique @default(uuid()) @db.Uuid
+  categoryId            Int?      @map("category_id")
+  tournamentId          Int?      @map("tournament_id")
+  title                 String    @db.VarChar(255)
+  slug                  String    @unique @db.VarChar(255)
+  examType              ExamType  @default(LIVE_CENTRAL_TEST) @map("exam_type")
+  totalQuestions        Int       @default(0) @map("total_questions")
+  totalMarks            Decimal   @map("total_marks") @db.Decimal(7, 2)
+  passMarks             Decimal   @default(0.00) @map("pass_marks") @db.Decimal(7, 2)
+  durationMinutes       Int       @map("duration_minutes")
+  negativeMarkingRate   Decimal   @default(0.50) @map("negative_marking_rate") @db.Decimal(4, 2)
+  isOmrMode             Boolean   @default(true) @map("is_omr_mode")
+  shuffleQuestions      Boolean   @default(false) @map("shuffle_questions")
+  shuffleOptions        Boolean   @default(false) @map("shuffle_options")
+  isPremiumOnly         Boolean   @default(false) @map("is_premium_only")
+  allowMultipleRetakes  Boolean   @default(false) @map("allow_multiple_retakes")
+  maxRetakesAllowed     Int       @default(1) @map("max_retakes_allowed")
+  maxTabSwitchesAllowed Int       @default(3) @map("max_tab_switches_allowed")
+  accessPin             String?   @map("access_pin") @db.VarChar(20)
+  syllabusDescription   String?   @map("syllabus_description") @db.Text
+  studyMaterials        Json?     @map("study_materials") @db.JsonB
+  startTime             DateTime  @map("start_time") @db.Timestamptz
+  endTime               DateTime  @map("end_time") @db.Timestamptz
+  resultPublishTime     DateTime? @map("result_publish_time") @db.Timestamptz
+  isPublished           Boolean   @default(false) @map("is_published")
+  isResultsPublished    Boolean   @default(false) @map("is_results_published")
+  totalParticipants     Int       @default(0) @map("total_participants")
+  highestScore          Decimal?  @map("highest_score") @db.Decimal(7, 2)
+  averageScore          Decimal?  @map("average_score") @db.Decimal(7, 2)
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt             DateTime? @map("deleted_at") @db.Timestamptz
+
+  category      Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tournament    Tournament?    @relation(fields: [tournamentId], references: [id], onDelete: SetNull)
+  sections      ExamSection[]
+  examQuestions ExamQuestion[]
+  attempts      ExamAttempt[]
+
+  @@index([isPublished, examType, startTime, endTime])
+  @@index([categoryId, isPublished, startTime(sort: Desc)])
+  @@index([tournamentId])
+  @@map("exams")
+}
+
+model ExamSection {
+  id              BigInt   @id @default(autoincrement())
+  examId          BigInt   @map("exam_id")
+  subjectId       Int?     @map("subject_id")
+  title           String   @db.VarChar(150)
+  displayOrder    Int      @default(1) @map("display_order")
+  totalMarks      Decimal  @default(0.00) @map("total_marks") @db.Decimal(6, 2)
+  sectionalCutoff Decimal? @map("sectional_cutoff") @db.Decimal(6, 2)
+  durationMinutes Int?     @map("duration_minutes")
+
+  exam          Exam           @relation(fields: [examId], references: [id], onDelete: Cascade)
+  subject       Subject?       @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  examQuestions ExamQuestion[]
+
+  @@unique([examId, displayOrder])
+  @@index([examId])
+  @@map("exam_sections")
+}
+
+model ExamQuestion {
+  examId        BigInt  @map("exam_id")
+  questionId    BigInt  @map("question_id")
+  sectionId     BigInt? @map("section_id")
+  marks         Decimal @default(1.00) @db.Decimal(5, 2)
+  negativeMarks Decimal @default(0.50) @map("negative_marks") @db.Decimal(5, 2)
+  questionOrder Int     @map("question_order")
+
+  exam     Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  question Question     @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  section  ExamSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+
+  @@id([examId, questionId])
+  @@unique([examId, questionOrder])
+  @@index([questionId])
+  @@index([sectionId])
+  @@map("exam_questions")
+}
+
+// ============================================================================
+// 5. EXAM ATTEMPTS, RUNTIME AUTOSAVE & ANTI-CHEAT
+// ============================================================================
+
+model ExamAttempt {
+  id                    String        @id @default(uuid()) @db.Uuid
+  examId                BigInt        @map("exam_id")
+  userId                Int           @map("user_id")
+  deviceId              BigInt?       @map("device_id")
+  attemptNumber         Int           @default(1) @map("attempt_number")
+  attemptVersion        Int           @default(1) @map("attempt_version")
+  isOfficial            Boolean       @default(true) @map("is_official")
+  isPracticeArchive     Boolean       @default(false) @map("is_practice_archive")
+  startedAt             DateTime      @default(now()) @map("started_at") @db.Timestamptz
+  expiresAt             DateTime      @map("expires_at") @db.Timestamptz
+  submittedAt           DateTime?     @map("submitted_at") @db.Timestamptz
+  evaluatedAt           DateTime?     @map("evaluated_at") @db.Timestamptz
+  status                AttemptStatus @default(INITIALIZED)
+  ipAddress             String?       @map("ip_address") @db.VarChar(45)
+  syncHash              String?       @map("sync_hash") @db.VarChar(64)
+  lastSyncedAt          DateTime      @default(now()) @map("last_synced_at") @db.Timestamptz
+  tabSwitchCount        Int           @default(0) @map("tab_switch_count")
+  fullscreenExitCount   Int           @default(0) @map("fullscreen_exit_count")
+  copyPasteAttemptCount Int           @default(0) @map("copy_paste_attempt_count")
+  totalAnswered         Int           @default(0) @map("total_answered")
+  totalCorrect          Int           @default(0) @map("total_correct")
+  totalWrong            Int           @default(0) @map("total_wrong")
+  totalUnanswered       Int           @default(0) @map("total_unanswered")
+  rawPositiveMarks      Decimal       @default(0.00) @map("raw_positive_marks") @db.Decimal(7, 2)
+  negativeDeducted      Decimal       @default(0.00) @map("negative_deducted") @db.Decimal(7, 2)
+  obtainedScore         Decimal       @default(0.00) @map("obtained_score") @db.Decimal(7, 2)
+  accuracyRate          Decimal       @default(0.00) @map("accuracy_rate") @db.Decimal(5, 2)
+  isPassed              Boolean?      @map("is_passed")
+  timeTakenSeconds      Int           @default(0) @map("time_taken_seconds")
+  meritPosition         Int?          @map("merit_position")
+  percentileScore       Decimal?      @map("percentile_score") @db.Decimal(5, 2)
+  subjectWiseBreakdown  Json?         @map("subject_wise_breakdown") @db.JsonB
+
+  exam             Exam                  @relation(fields: [examId], references: [id], onDelete: Cascade)
+  user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device           UserDevice?           @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  runtimeResponses ExamQuestionRuntime[]
+  antiCheatLogs    AntiCheatLog[]
+
+  @@unique([examId, userId, attemptNumber])
+  @@index([userId, examId])
+  @@index([examId, isOfficial, status, obtainedScore(sort: Desc), timeTakenSeconds(sort: Asc)])
+  @@index([status, expiresAt])
+  @@map("exam_attempts")
+}
+
+model ExamQuestionRuntime {
+  attemptId         String           @map("attempt_id") @db.Uuid
+  questionId        BigInt           @map("question_id")
+  selectedOptionId  BigInt?          @map("selected_option_id")
+  selectedOptionIds BigInt[]         @default([]) @map("selected_option_ids")
+  navState          QuestionNavState @default(NOT_VISITED) @map("nav_state")
+  timeSpentSeconds  Int              @default(0) @map("time_spent_seconds")
+  answerChangeCount Int              @default(0) @map("answer_change_count")
+  isLocked          Boolean          @default(false) @map("is_locked")
+  isCorrect         Boolean?         @map("is_correct")
+  marksAwarded      Decimal?         @map("marks_awarded") @db.Decimal(5, 2)
+  answeredAt        DateTime?        @map("answered_at") @db.Timestamptz
+  updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  attempt  ExamAttempt     @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question        @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  option   QuestionOption? @relation(fields: [selectedOptionId, questionId], references: [id, questionId], onDelete: Restrict)
+
+  @@id([attemptId, questionId])
+  @@index([attemptId, navState])
+  @@index([questionId, isCorrect])
+  @@map("exam_question_runtime")
+}
+
+model AntiCheatLog {
+  id         BigInt            @id @default(autoincrement())
+  attemptId  String            @map("attempt_id") @db.Uuid
+  eventName  String            @map("event_name") @db.VarChar(50)
+  severity   AntiCheatSeverity @default(LOW)
+  ipAddress  String?           @map("ip_address") @db.VarChar(45)
+  metadata   Json?             @db.JsonB
+  occurredAt DateTime          @default(now()) @map("occurred_at") @db.Timestamptz
+
+  attempt ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@index([attemptId, occurredAt])
+  @@index([attemptId, severity])
+  @@map("anti_cheat_logs")
+}
+
+// ============================================================================
+// 6. SPACED REPETITION ENGINE (SM-2) & BOOKMARKS
+// ============================================================================
+
+model UserFavorite {
+  userId       Int      @map("user_id")
+  questionId   BigInt   @map("question_id")
+  folderName   String   @default("Default") @map("folder_name") @db.VarChar(100)
+  personalNote String?  @map("personal_note") @db.Text
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, questionId])
+  @@index([userId, folderName, createdAt(sort: Desc)])
+  @@map("user_favorites")
+}
+
+model SpacedRepetitionQueue {
+  id               BigInt   @id @default(autoincrement())
+  userId           Int      @map("user_id")
+  questionId       BigInt   @map("question_id")
+  repetitionNumber Int      @default(0) @map("repetition_number")
+  lapsesCount      Int      @default(0) @map("lapses_count")
+  intervalDays     Int      @default(1) @map("interval_days")
+  easeFactor       Decimal  @default(2.50) @map("ease_factor") @db.Decimal(4, 2)
+  lastQualityGrade Int      @default(0) @map("last_quality_grade")
+  nextReviewDate   DateTime @map("next_review_date") @db.Date
+  isMastered       Boolean  @default(false) @map("is_mastered")
+  lastReviewedAt   DateTime @default(now()) @map("last_reviewed_at") @db.Timestamptz
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questionId])
+  @@index([userId, isMastered, nextReviewDate(sort: Asc)])
+  @@map("spaced_repetition_queue")
+}
+
+// ============================================================================
+// 7. COMPASS™: STUDY PLANNER, STREAKS & HEATMAP
+// ============================================================================
+
+model UserStreak {
+  userId               Int      @id @map("user_id")
+  currentStreak        Int      @default(0) @map("current_streak")
+  longestStreak        Int      @default(0) @map("longest_streak")
+  streakFreezeCount    Int      @default(0) @map("streak_freeze_count")
+  lastActivityDate     DateTime @default(now()) @map("last_activity_date") @db.Date
+  totalExamsGiven      Int      @default(0) @map("total_exams_given")
+  totalQuestionsSolved Int      @default(0) @map("total_questions_solved")
+  totalStudyMinutes    Int      @default(0) @map("total_study_minutes")
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_streaks")
+}
+
+model UserDailyActivity {
+  userId          Int      @map("user_id")
+  activityDate    DateTime @map("activity_date") @db.Date
+  examsCompleted  Int      @default(0) @map("exams_completed")
+  questionsSolved Int      @default(0) @map("questions_solved")
+  correctCount    Int      @default(0) @map("correct_count")
+  vocabReviewed   Int      @default(0) @map("vocab_reviewed")
+  studyMinutes    Int      @default(0) @map("study_minutes")
+  xpEarned        Int      @default(0) @map("xp_earned")
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, activityDate])
+  @@index([userId, activityDate(sort: Desc)])
+  @@map("user_daily_activities")
+}
+
+model UserSyllabusTracker {
+  userId             Int       @map("user_id")
+  topicId            Int       @map("topic_id")
+  isCompleted        Boolean   @default(false) @map("is_completed")
+  confidenceRating   Int?      @map("confidence_rating")
+  questionsAttempted Int       @default(0) @map("questions_attempted")
+  accuracyPercent    Decimal   @default(0.00) @map("accuracy_percent") @db.Decimal(5, 2)
+  revisionCount      Int       @default(0) @map("revision_count")
+  notes              String?   @db.Text
+  completedAt        DateTime? @map("completed_at") @db.Timestamptz
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@id([userId, topicId])
+  @@index([userId, isCompleted])
+  @@map("user_syllabus_tracker")
+}
+
+// ============================================================================
+// 8. VOCABULARY BOOSTER PRO™ (LEITNER SYSTEM)
+// ============================================================================
+
+model VocabularyCard {
+  id                BigInt          @id @default(autoincrement())
+  topicId           Int?            @map("topic_id")
+  word              String          @unique @db.VarChar(100)
+  pronunciationIpa  String?         @map("pronunciation_ipa") @db.VarChar(100)
+  partOfSpeech      String?         @map("part_of_speech") @db.VarChar(30)
+  englishDefinition String?         @map("english_definition") @db.Text
+  bengaliMeaning    String          @map("bengali_meaning") @db.Text
+  synonyms          String[]        @default([])
+  antonyms          String[]        @default([])
+  mnemonicTrick     String?         @map("mnemonic_trick") @db.Text
+  exampleSentence   String?         @map("example_sentence") @db.Text
+  audioPronounceUrl String?         @map("audio_pronounce_url") @db.Text
+  difficulty        DifficultyLevel @default(MEDIUM)
+  isActive          Boolean         @default(true) @map("is_active")
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+
+  topic        Topic?                   @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  userProgress UserVocabularyProgress[]
+
+  @@index([difficulty, isActive])
+  @@index([topicId])
+  @@map("vocabulary_cards")
+}
+
+model UserVocabularyProgress {
+  userId         Int      @map("user_id")
+  cardId         BigInt   @map("card_id")
+  leitnerBox     Int      @default(1) @map("leitner_box")
+  correctStreak  Int      @default(0) @map("correct_streak")
+  wrongCount     Int      @default(0) @map("wrong_count")
+  isMastered     Boolean  @default(false) @map("is_mastered")
+  nextReviewDate DateTime @default(now()) @map("next_review_date") @db.Date
+  lastReviewedAt DateTime @default(now()) @map("last_reviewed_at") @db.Timestamptz
+
+  user User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card VocabularyCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@id([userId, cardId])
+  @@index([userId, isMastered, nextReviewDate(sort: Asc), leitnerBox])
+  @@map("user_vocabulary_progress")
+}
+
+// ============================================================================
+// 9. COMMUNITY DISCUSSIONS, UPVOTE DEDUPLICATION & ERROR REPORTING
+// ============================================================================
+
+model QuestionComment {
+  id                  BigInt    @id @default(autoincrement())
+  questionId          BigInt    @map("question_id")
+  userId              Int       @map("user_id")
+  parentCommentId     BigInt?   @map("parent_comment_id")
+  commentText         String    @map("comment_text") @db.Text
+  imageUrl            String?   @map("image_url") @db.Text
+  upvotes             Int       @default(0)
+  isPinned            Boolean   @default(false) @map("is_pinned")
+  isVerifiedByTeacher Boolean   @default(false) @map("is_verified_by_teacher")
+  isEdited            Boolean   @default(false) @map("is_edited")
+  isHidden            Boolean   @default(false) @map("is_hidden")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt           DateTime? @map("deleted_at") @db.Timestamptz
+
+  question      Question                @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user          User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentComment QuestionComment?        @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies       QuestionComment[]       @relation("CommentReplies")
+  upvotedBy     QuestionCommentUpvote[]
+
+  @@index([questionId, isPinned(sort: Desc), upvotes(sort: Desc), createdAt(sort: Desc)])
+  @@index([parentCommentId])
+  @@index([userId])
+  @@map("question_comments")
+}
+
+model QuestionCommentUpvote {
+  commentId BigInt   @map("comment_id")
+  userId    Int      @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  comment QuestionComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([commentId, userId])
+  @@index([userId])
+  @@map("question_comment_upvotes")
+}
+
+model QuestionReport {
+  id              BigInt       @id @default(autoincrement())
+  questionId      BigInt       @map("question_id")
+  userId          Int?         @map("user_id")
+  resolvedById    Int?         @map("resolved_by_id")
+  reason          ReportReason
+  userNotes       String?      @map("user_notes") @db.Text
+  screenshotUrl   String?      @map("screenshot_url") @db.Text
+  resolutionNotes String?      @map("resolution_notes") @db.Text
+  status          ReportStatus @default(PENDING)
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  resolvedAt      DateTime?    @map("resolved_at") @db.Timestamptz
+
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user       User?    @relation("ReportedByUser", fields: [userId], references: [id], onDelete: SetNull)
+  resolvedBy User?    @relation("ResolvedByAdmin", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt(sort: Asc)])
+  @@index([questionId, status])
+  @@map("question_reports")
+}
+
+// ============================================================================
+// 10. TOURNAMENTS & AWARD MANIA
+// ============================================================================
+
+model Tournament {
+  id            Int      @id @default(autoincrement())
+  seasonName    String   @map("season_name") @db.VarChar(150)
+  slug          String   @unique @db.VarChar(150)
+  description   String?  @db.Text
+  bannerUrl     String?  @map("banner_url") @db.Text
+  startsAt      DateTime @map("starts_at") @db.Timestamptz
+  endsAt        DateTime @map("ends_at") @db.Timestamptz
+  prizePoolMeta Json?    @map("prize_pool_meta") @db.JsonB
+  rulesMeta     Json?    @map("rules_meta") @db.JsonB
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  exams    Exam[]
+  rankings TournamentRanking[]
+
+  @@index([isActive, startsAt, endsAt])
+  @@map("tournaments")
+}
+
+model TournamentRanking {
+  tournamentId         Int       @map("tournament_id")
+  userId               Int       @map("user_id")
+  examsParticipated    Int       @default(0) @map("exams_participated")
+  cumulativeScore      Decimal   @default(0.00) @map("cumulative_score") @db.Decimal(9, 2)
+  totalTimeSeconds     Int       @default(0) @map("total_time_seconds")
+  currentRank          Int?      @map("current_rank")
+  finalRank            Int?      @map("final_rank")
+  rewardClaimed        Boolean   @default(false) @map("reward_claimed")
+  rewardClaimedAt      DateTime? @map("reward_claimed_at") @db.Timestamptz
+  rewardDisbursementId String?   @map("reward_disbursement_id") @db.VarChar(100)
+  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([tournamentId, userId])
+  @@index([tournamentId, cumulativeScore(sort: Desc), totalTimeSeconds(sort: Asc)])
+  @@map("tournament_rankings")
+}
+
+// ============================================================================
+// 11. PACKAGES, COUPONS, SUBSCRIPTIONS & MONETIZATION
+// ============================================================================
+
+model Package {
+  id           Int      @id @default(autoincrement())
+  categoryId   Int?     @map("category_id")
+  title        String   @db.VarChar(150)
+  slug         String   @unique @db.VarChar(150)
+  durationDays Int      @map("duration_days")
+  basePrice    Decimal  @map("base_price") @db.Decimal(9, 2)
+  sellingPrice Decimal  @map("selling_price") @db.Decimal(9, 2)
+  currency     String   @default("BDT") @db.VarChar(10)
+  featuresList Json?    @map("features_list") @db.JsonB
+  displayOrder Int      @default(0) @map("display_order")
+  isPopular    Boolean  @default(false) @map("is_popular")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  category      Category?            @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  payments      PaymentTransaction[]
+  subscriptions UserSubscription[]
+
+  @@index([isActive, displayOrder])
+  @@index([categoryId])
+  @@map("packages")
+}
+
+model Coupon {
+  id                Int          @id @default(autoincrement())
+  code              String       @unique @db.VarChar(50)
+  description       String?      @db.VarChar(255)
+  discountType      DiscountType @map("discount_type")
+  discountValue     Decimal      @map("discount_value") @db.Decimal(9, 2)
+  maxDiscountAmount Decimal?     @map("max_discount_amount") @db.Decimal(9, 2)
+  minPurchaseAmount Decimal      @default(0.00) @map("min_purchase_amount") @db.Decimal(9, 2)
+  maxUsesTotal      Int?         @map("max_uses_total")
+  maxUsesPerUser    Int          @default(1) @map("max_uses_per_user")
+  usedCount         Int          @default(0) @map("used_count")
+  startsAt          DateTime     @map("starts_at") @db.Timestamptz
+  expiresAt         DateTime     @map("expires_at") @db.Timestamptz
+  isActive          Boolean      @default(true) @map("is_active")
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz
+
+  payments PaymentTransaction[]
+
+  @@index([code, isActive, expiresAt])
+  @@map("coupons")
+}
+
+model PaymentTransaction {
+  id                   String          @id @default(uuid()) @db.Uuid
+  userId               Int?            @map("user_id")
+  packageId            Int?            @map("package_id")
+  couponId             Int?            @map("coupon_id")
+  subtotalAmount       Decimal         @map("subtotal_amount") @db.Decimal(9, 2)
+  discountAmount       Decimal         @default(0.00) @map("discount_amount") @db.Decimal(9, 2)
+  amount               Decimal         @db.Decimal(9, 2)
+  currency             String          @default("BDT") @db.VarChar(10)
+  provider             PaymentProvider
+  idempotencyKey       String          @unique @map("idempotency_key") @db.VarChar(100)
+  transactionReference String?         @unique @map("transaction_reference") @db.VarChar(100)
+  gatewayTransactionId String?         @unique @map("gateway_transaction_id") @db.VarChar(100)
+  senderPhoneNumber    String?         @map("sender_phone_number") @db.VarChar(20)
+  status               PaymentState    @default(INITIATED)
+  failureReason        String?         @map("failure_reason") @db.Text
+  gatewayRawResponse   Json?           @map("gateway_raw_response") @db.JsonB
+  paidAt               DateTime?       @map("paid_at") @db.Timestamptz
+  refundedAt           DateTime?       @map("refunded_at") @db.Timestamptz
+  createdAt            DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+
+  user         User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  package      Package?          @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  coupon       Coupon?           @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  subscription UserSubscription?
+
+  @@index([userId, status, createdAt(sort: Desc)])
+  @@index([provider, status, createdAt])
+  @@map("payment_transactions")
+}
+
+model UserSubscription {
+  id                   BigInt             @id @default(autoincrement())
+  userId               Int                @map("user_id")
+  packageId            Int                @map("package_id")
+  paymentTransactionId String?            @unique @map("payment_transaction_id") @db.Uuid
+  validFrom            DateTime           @map("valid_from") @db.Timestamptz
+  validUntil           DateTime           @map("valid_until") @db.Timestamptz
+  status               SubscriptionStatus @default(PREMIUM)
+  autoRenew            Boolean            @default(false) @map("auto_renew")
+  cancelledAt          DateTime?          @map("cancelled_at") @db.Timestamptz
+  cancellationReason   String?            @map("cancellation_reason") @db.Text
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  package     Package             @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  transaction PaymentTransaction? @relation(fields: [paymentTransactionId], references: [id], onDelete: Restrict)
+
+  @@index([userId, status, validUntil(sort: Desc)])
+  @@index([status, validUntil])
+  @@map("user_subscriptions")
+}
+
+// ============================================================================
+// 12. ENTERPRISE SECURITY & SYSTEM AUDIT LOGS
+// ============================================================================
+
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  actorId    Int?     @map("actor_id")
+  action     String   @db.VarChar(100)
+  entityType String   @map("entity_type") @db.VarChar(50)
+  entityId   String   @map("entity_id") @db.VarChar(100)
+  oldValues  Json?    @map("old_values") @db.JsonB
+  newValues  Json?    @map("new_values") @db.JsonB
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  userAgent  String?  @map("user_agent") @db.Text
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt(sort: Desc)])
+  @@index([actorId, createdAt(sort: Desc)])
+  @@map("audit_logs")
 }
