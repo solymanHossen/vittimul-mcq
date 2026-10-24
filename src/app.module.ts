@@ -10,6 +10,9 @@ import { StorageModule } from './storage/storage.module';
 import { SettingsModule } from './settings/settings.module';
 import { TaxonomyModule } from './taxonomy/taxonomy.module';
 import { QuestionsModule } from './questions/questions.module';
+import { LeaderboardModule } from './leaderboard/leaderboard.module';
+import { ExamRuntimeModule } from './exam-runtime/exam-runtime.module';
+import { ExamsModule } from './exams/exams.module';
 import { MailModule } from './mail/mail.module';
 import { AppIdentityModule } from './common/config/app-identity.module';
 import { validateEnv } from './common/config/env.validation';
@@ -70,6 +73,9 @@ import { AUTH_THROTTLE_KEY, GLOBAL_THROTTLE_KEY } from './common/constants/throt
     SettingsModule,
     TaxonomyModule,
     QuestionsModule,
+    LeaderboardModule,
+    ExamRuntimeModule,
+    ExamsModule,
   ],
   providers: [
     // ── Global validation pipe ────────────────────────────────────────────────
