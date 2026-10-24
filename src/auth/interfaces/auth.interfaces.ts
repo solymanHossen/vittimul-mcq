@@ -4,6 +4,7 @@ export interface JwtAccessPayload {
   sub: number;
   email: string;
   role: Role;
+  tokenVersion: number;
   iat?: number;
   exp?: number;
 }

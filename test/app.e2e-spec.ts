@@ -3,8 +3,6 @@ import { type INestApplication, VersioningType, HttpStatus } from '@nestjs/commo
 import request from 'supertest';
 import { type App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
-import { TransformInterceptor } from '../src/common/interceptors/transform.interceptor';
-import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 
 describe('Application bootstrap (e2e)', () => {
   let app: INestApplication<App>;
@@ -17,11 +15,12 @@ describe('Application bootstrap (e2e)', () => {
     app = moduleFixture.createNestApplication();
 
     // Mirrors main.ts's production bootstrap so this exercises the actual
-    // deployed request pipeline, not a bare, unconfigured Nest app.
+    // deployed request pipeline, not a bare, unconfigured Nest app. The
+    // exception filter and response interceptor are NOT registered manually
+    // here — AppModule already wires them globally via APP_FILTER/
+    // APP_INTERCEPTOR, and doing both would run each twice.
     app.setGlobalPrefix('api');
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
-    app.useGlobalFilters(new HttpExceptionFilter());
-    app.useGlobalInterceptors(new TransformInterceptor());
 
     await app.init();
   });

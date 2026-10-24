@@ -85,6 +85,7 @@ export class AuthService {
         password: true,
         failedLoginAttempts: true,
         lockedUntil: true,
+        tokenVersion: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -115,7 +116,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
+    const tokens = await this.generateTokens(user.id, user.email, user.role, user.tokenVersion);
 
     await this.prisma.$transaction([
       this.prisma.user.update({
@@ -134,7 +135,13 @@ export class AuthService {
       }),
     ]);
 
-    const { password: _pw, failedLoginAttempts: _fa, lockedUntil: _lu, ...safeUser } = user;
+    const {
+      password: _pw,
+      failedLoginAttempts: _fa,
+      lockedUntil: _lu,
+      tokenVersion: _tv,
+      ...safeUser
+    } = user;
 
     return { message: 'Login successful', data: safeUser, tokens };
   }
@@ -181,14 +188,14 @@ export class AuthService {
 
     const user = await this.prisma.user.findFirst({
       where: { id: storedToken.userId, deletedAt: null, isActive: true },
-      select: { id: true, email: true, role: true },
+      select: { id: true, email: true, role: true, tokenVersion: true },
     });
 
     if (!user) {
       throw new UnauthorizedException('User account is no longer valid');
     }
 
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
+    const tokens = await this.generateTokens(user.id, user.email, user.role, user.tokenVersion);
 
     await this.prisma.$transaction([
       this.prisma.refreshToken.update({
@@ -225,10 +232,21 @@ export class AuthService {
   }
 
   async logoutAll(userId: number): Promise<{ message: string; data: null }> {
-    await this.prisma.refreshToken.updateMany({
-      where: { userId, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
+    // Revoking refresh tokens alone doesn't invalidate already-issued access
+    // tokens (stateless JWTs remain valid until they expire). Bumping
+    // tokenVersion closes that gap — JwtStrategy rejects any access token
+    // whose embedded tokenVersion no longer matches the user's current one.
+    await this.prisma.$transaction([
+      this.prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { tokenVersion: { increment: 1 } },
+        select: { id: true },
+      }),
+    ]);
 
     return { message: 'All sessions revoked successfully', data: null };
   }
@@ -257,6 +275,7 @@ export class AuthService {
         role: true,
         isActive: true,
         googleId: true,
+        tokenVersion: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -277,6 +296,7 @@ export class AuthService {
           role: true,
           isActive: true,
           googleId: true,
+          tokenVersion: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -298,6 +318,7 @@ export class AuthService {
       existingUser.id,
       existingUser.email,
       existingUser.role,
+      existingUser.tokenVersion,
     );
 
     await this.prisma.refreshToken.create({
@@ -310,7 +331,7 @@ export class AuthService {
       select: { id: true },
     });
 
-    const { googleId: _gid, ...safeUser } = existingUser;
+    const { googleId: _gid, tokenVersion: _tv, ...safeUser } = existingUser;
 
     return { message: 'Google login successful', data: safeUser, tokens };
   }
@@ -387,7 +408,14 @@ export class AuthService {
     await this.prisma.$transaction([
       this.prisma.user.update({
         where: { id: storedToken.userId },
-        data: { password: passwordHash, failedLoginAttempts: 0, lockedUntil: null },
+        data: {
+          password: passwordHash,
+          failedLoginAttempts: 0,
+          lockedUntil: null,
+          // See logoutAll() — bumping tokenVersion invalidates any
+          // already-issued access token too, not just refresh tokens.
+          tokenVersion: { increment: 1 },
+        },
         select: { id: true },
       }),
       this.prisma.passwordResetToken.update({
@@ -426,8 +454,13 @@ export class AuthService {
     }
   }
 
-  private async generateTokens(userId: number, email: string, role: Role): Promise<TokenPair> {
-    const payload: JwtAccessPayload = { sub: userId, email, role };
+  private async generateTokens(
+    userId: number,
+    email: string,
+    role: Role,
+    tokenVersion: number,
+  ): Promise<TokenPair> {
+    const payload: JwtAccessPayload = { sub: userId, email, role, tokenVersion };
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload),

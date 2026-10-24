@@ -5,13 +5,14 @@ import {
   type HealthCheckResult,
 } from '@nestjs/terminus';
 import { DatabaseHealthIndicator } from '../database/db.health';
+import { RedisHealthIndicator } from '../common/redis/redis.health';
 import { HealthController } from './health.controller';
 
 const mockHealthCheckResult: HealthCheckResult = {
   status: 'ok',
-  info: { postgres: { status: 'up' }, memory_heap: { status: 'up' } },
+  info: { postgres: { status: 'up' }, redis: { status: 'up' }, memory_heap: { status: 'up' } },
   error: {},
-  details: { postgres: { status: 'up' }, memory_heap: { status: 'up' } },
+  details: { postgres: { status: 'up' }, redis: { status: 'up' }, memory_heap: { status: 'up' } },
 };
 
 const mockHealthCheckService = {
@@ -19,6 +20,10 @@ const mockHealthCheckService = {
 };
 
 const mockDbIndicator = {
+  isHealthy: jest.fn(),
+};
+
+const mockRedisIndicator = {
   isHealthy: jest.fn(),
 };
 
@@ -38,6 +43,7 @@ describe('HealthController', () => {
       providers: [
         { provide: HealthCheckService, useValue: mockHealthCheckService },
         { provide: DatabaseHealthIndicator, useValue: mockDbIndicator },
+        { provide: RedisHealthIndicator, useValue: mockRedisIndicator },
         { provide: MemoryHealthIndicator, useValue: mockMemoryIndicator },
       ],
     }).compile();
@@ -57,22 +63,25 @@ describe('HealthController', () => {
   });
 
   describe('readiness()', () => {
-    it('delegates to HealthCheckService with the db and memory indicators', async () => {
+    it('delegates to HealthCheckService with the db, redis, and memory indicators', async () => {
       const result = await controller.readiness();
 
       expect(result).toEqual(mockHealthCheckResult);
       expect(mockHealthCheckService.check).toHaveBeenCalledTimes(1);
 
       const checks = mockHealthCheckService.check.mock.calls[0][0] as Array<() => unknown>;
-      expect(checks).toHaveLength(2);
+      expect(checks).toHaveLength(3);
 
-      const [dbCheck, memoryCheck] = checks;
-      if (!dbCheck || !memoryCheck) {
-        throw new Error('Expected exactly two health checks to be registered');
+      const [dbCheck, redisCheck, memoryCheck] = checks;
+      if (!dbCheck || !redisCheck || !memoryCheck) {
+        throw new Error('Expected exactly three health checks to be registered');
       }
 
       await dbCheck();
       expect(mockDbIndicator.isHealthy).toHaveBeenCalledWith('postgres');
+
+      await redisCheck();
+      expect(mockRedisIndicator.isHealthy).toHaveBeenCalledWith('redis');
 
       await memoryCheck();
       expect(mockMemoryIndicator.checkHeap).toHaveBeenCalledWith('memory_heap', 300 * 1024 * 1024);

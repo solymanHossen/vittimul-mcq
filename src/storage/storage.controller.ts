@@ -23,7 +23,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { Role } from '@prisma/client';
 import { Public } from '../auth/decorators/public.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { StorageEntity } from './entities/storage.entity';
 import { UploadFileSchema, type UploadFileDto } from './dto/upload-file.dto';
@@ -98,6 +100,10 @@ export class StorageController {
     // headers (CORP is enforced independently of CORS for no-cors resource
     // loads). Scoped to just this route rather than loosened globally in main.ts.
     response.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    // Prevents the browser from MIME-sniffing an uploaded .svg (or any other
+    // object) into a type other than the one we declared above — relevant
+    // here because svg/xml can carry script content.
+    response.setHeader('X-Content-Type-Options', 'nosniff');
 
     fileStream.on('error', (error: Error) => {
       this.logger.error(`Stream failure for object "${objectKey}": ${error.message}`, error.stack);
@@ -114,6 +120,7 @@ export class StorageController {
   @Delete(':folder/:filename')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN, Role.INSTRUCTOR)
   @ApiOperation({ summary: 'Delete a previously uploaded object' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Object deleted (idempotent)' })
   async deleteFile(

@@ -81,6 +81,7 @@ const baseUser = {
   failedLoginAttempts: 0,
   lockedUntil: null,
   googleId: null,
+  tokenVersion: 1,
   createdAt: new Date('2026-01-01'),
   updatedAt: new Date('2026-01-01'),
 };
@@ -220,6 +221,7 @@ describe('AuthService', () => {
       expect(result.data).not.toHaveProperty('password');
       expect(result.data).not.toHaveProperty('failedLoginAttempts');
       expect(result.data).not.toHaveProperty('lockedUntil');
+      expect(result.data).not.toHaveProperty('tokenVersion');
       expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
 
@@ -315,6 +317,7 @@ describe('AuthService', () => {
         id: 1,
         email: 'user@example.com',
         role: Role.USER,
+        tokenVersion: 1,
       });
       mockPrisma.refreshToken.update.mockResolvedValueOnce({});
       mockPrisma.refreshToken.create.mockResolvedValueOnce({ id: 11 });
@@ -388,8 +391,9 @@ describe('AuthService', () => {
   });
 
   describe('logoutAll()', () => {
-    it('should revoke all active sessions for the given userId', async () => {
+    it('should revoke all active sessions and bump tokenVersion for the given userId', async () => {
       mockPrisma.refreshToken.updateMany.mockResolvedValueOnce({ count: 4 });
+      mockPrisma.user.update.mockResolvedValueOnce({ id: 1 });
 
       const result = await service.logoutAll(1);
 
@@ -398,6 +402,12 @@ describe('AuthService', () => {
         where: { userId: 1, revokedAt: null },
         data: { revokedAt: expect.any(Date) },
       });
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { tokenVersion: { increment: 1 } },
+        select: { id: true },
+      });
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -422,6 +432,7 @@ describe('AuthService', () => {
         role: Role.USER,
         isActive: true,
         googleId: 'google-uid-123',
+        tokenVersion: 1,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -438,6 +449,7 @@ describe('AuthService', () => {
         }),
       );
       expect(result.data).not.toHaveProperty('googleId');
+      expect(result.data).not.toHaveProperty('tokenVersion');
       expect(result.tokens.accessToken).toBe('mock.access.token.signed');
     });
 
@@ -561,6 +573,7 @@ describe('AuthService', () => {
           password: '$2b$12$hashedpassword',
           failedLoginAttempts: 0,
           lockedUntil: null,
+          tokenVersion: { increment: 1 },
         }),
         select: { id: true },
       });

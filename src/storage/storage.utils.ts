@@ -12,6 +12,11 @@ const EXTENSION_CONTENT_TYPES: Readonly<Record<string, string>> = {
   '.txt': 'text/plain',
   '.csv': 'text/csv',
   '.json': 'application/json',
+  '.mp3': 'audio/mpeg',
+  '.m4a': 'audio/mp4',
+  '.ogg': 'audio/ogg',
+  '.wav': 'audio/wav',
+  '.webm': 'audio/webm',
 };
 
 /**

@@ -11,9 +11,10 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(configService: ConfigService) {
     const clientID = configService.get<string>('GOOGLE_CLIENT_ID') ?? '';
     const clientSecret = configService.get<string>('GOOGLE_CLIENT_SECRET') ?? '';
+    const port = configService.get<number>('PORT') ?? 3000;
     const callbackURL =
       configService.get<string>('GOOGLE_CALLBACK_URL') ??
-      'http://localhost:3006/api/v1/auth/google/callback';
+      `http://localhost:${port}/api/v1/auth/google/callback`;
 
     // Passport-OAuth2 requires non-empty clientID/clientSecret at construction time.
     // When credentials are absent we pass sentinels so the app starts; validate()
